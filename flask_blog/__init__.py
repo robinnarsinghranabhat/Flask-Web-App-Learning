@@ -16,4 +16,7 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'info'
 
+# Here is where the magic happes. 
+# We add view-functions to the above initialized "app" object 
+# through cunning use of decorators.
 from flask_blog import routes

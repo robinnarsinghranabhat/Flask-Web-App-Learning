@@ -1,10 +1,17 @@
+import os
+import secrets
+from PIL import Image
+from dataclasses import dataclass
 import email
+from fileinput import filename
 from flask_blog import app, bcrypt, db
 from flask import render_template, flash, redirect, url_for, request
-from flask_blog.forms import RegistrationForm, LoginForm
+from flask_blog.forms import RegistrationForm, LoginForm, AccountUpdateForm
 from flask_blog.models import User, Post
 
-from flask_login import login_user, current_user, logout_user, login_required
+# current_user varaible invokes a function 
+# that returns a user if someone is logged in. 
+from flask_login import login_user, current_user, logout_user, login_required, user_accessed
 
 posts = [
     {
@@ -85,7 +92,9 @@ def login():
             # browser remembers that, after login though, we need to go to "account" view.
 
             # To implement that, we use code below.
-            next_page = request.args.get('next').strip('/')
+            next_page = request.args.get('next') #.strip('/')
+            if next_page:
+                next_page = next_page.strip('/')
             # Without above line, we would normally not continue our visit to "account"
             # but go to home page.
             return redirect(url_for(next_page)) if next_page else redirect(url_for('home'))
@@ -102,7 +111,49 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route("/account", methods=["GET"])
+def save_picture(form_picture):
+    random_hex = secrets.token_hex(nbytes=8)
+    _, f_ext = os.path.splitext(form_picture.filename)
+    picture_fn = random_hex + f_ext
+    picture_save_path = os.path.join( app.root_path, 'static/profile_pics' , picture_fn )
+    i = Image.open( form_picture )
+    # resize here
+    i.thumbnail = (125,125)
+    i.save(picture_save_path)
+
+    return picture_fn
+
+
+@app.route("/account", methods=["GET", "POST"])
 @login_required
 def account():
-    return render_template("account.html", title='Account')
+    """
+    This view updates the account information :
+    - username
+    - email
+    - Profile Image of User
+    """
+
+    form = AccountUpdateForm()
+
+    if form.validate_on_submit():
+
+        if form.picture.data:
+            picture_file = save_picture(form.picture.data)
+            current_user.image_file = picture_file
+
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        db.session.commit()
+
+        flash("Account Sucessfully Updated", "success")
+        return redirect( url_for('account'))
+
+    
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+
+    image_file = url_for('static',  filename='profile_pics/' + current_user.image_file)
+    # NOTE : Additional arguments are be used as variables in jinja
+    return render_template("account.html", title='Account Page', image_file=image_file, form=form)
