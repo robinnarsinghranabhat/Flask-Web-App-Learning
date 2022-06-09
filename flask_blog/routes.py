@@ -6,7 +6,7 @@ import email
 from fileinput import filename
 from flask_blog import app, bcrypt, db
 from flask import render_template, flash, redirect, url_for, request
-from flask_blog.forms import RegistrationForm, LoginForm, AccountUpdateForm
+from flask_blog.forms import RegistrationForm, LoginForm, AccountUpdateForm, PostForm
 from flask_blog.models import User, Post
 
 # current_user varaible invokes a function 
@@ -32,6 +32,7 @@ posts = [
 @app.route("/")
 @app.route("/home")
 def home():
+    posts = Post.query.all()
     return render_template("home.html", posts=posts)
 
 @app.route("/about")
@@ -157,3 +158,28 @@ def account():
     image_file = url_for('static',  filename='profile_pics/' + current_user.image_file)
     # NOTE : Additional arguments are be used as variables in jinja
     return render_template("account.html", title='Account Page', image_file=image_file, form=form)
+
+
+
+@app.route("/post/new", methods=["GET", "POST"])
+@login_required # Only Logged-in user can access view to create a new-post
+def create_post():
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(
+            title=form.title.data, 
+            content=form.content.data,
+            author=current_user)
+        db.session.add(post)
+        db.session.commit()
+        flash(f'New Post Created !', "success")
+        return redirect( url_for('home') )
+    return render_template("create_post.html", title='New Post', form=form)
+
+
+@app.route("/post/<int:post_id>", methods=["GET"])
+def post(post_id):
+    post = Post.query.get_or_404(post_id)
+    return render_template("post.html", title=post.title, post=post)
+
+
