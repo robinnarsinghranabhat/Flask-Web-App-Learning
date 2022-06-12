@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import email
 from fileinput import filename
 from flask_blog import app, bcrypt, db
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, abort
 from flask_blog.forms import RegistrationForm, LoginForm, AccountUpdateForm, PostForm
 from flask_blog.models import User, Post
 
@@ -32,8 +32,32 @@ posts = [
 @app.route("/")
 @app.route("/home")
 def home():
-    posts = Post.query.all()
+    page_num = request.args.get('page_num', 1, type=int)
+    posts = Post.query.order_by(Post.date_posted.desc()).paginate(per_page=5, page=page_num)
     return render_template("home.html", posts=posts)
+
+
+@app.route("/user/<string:username>")
+def user_posts(username):
+    """
+    Show Posts by a particular User
+    """
+    # If user is not found, return a 404 Page not found directly.
+    # no extra if else bullshit.
+    page_num = request.args.get('page_num', 1, type=int)
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = Post.query.filter_by(author=user)\
+            .order_by(Post.date_posted.desc())\
+            .paginate(per_page=5, page=page_num)
+    return render_template("user_post.html", posts=posts, user=user)
+
+
+# @app.route("/user_posts/")
+# def home():
+#     page_num = request.args.get('page_num', 2, type=int)
+#     # Post.query.order_by()
+#     posts = Post.query.paginate(per_page=5, page=page_num)
+#     return render_template("home.html", posts=posts)
 
 @app.route("/about")
 def about_page():
@@ -125,6 +149,10 @@ def save_picture(form_picture):
     return picture_fn
 
 
+# THIS VIEW IS USING A POST/REDIRECT/GET Pattern
+# https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-ix-pagination
+# Notice : After handling post-reqest, we redirect to this view itself.
+# Because, when we submit form,  
 @app.route("/account", methods=["GET", "POST"])
 @login_required
 def account():
@@ -147,7 +175,7 @@ def account():
         current_user.email = form.email.data
         db.session.commit()
 
-        flash("Account Sucessfully Updated", "success")
+        # flash("Account Sucessfully Updated", "success")
         return redirect( url_for('account'))
 
     
@@ -174,7 +202,7 @@ def create_post():
         db.session.commit()
         flash(f'New Post Created !', "success")
         return redirect( url_for('home') )
-    return render_template("create_post.html", title='New Post', form=form)
+    return render_template("create_post.html", title='New Post', legend='Create a new Post', form=form)
 
 
 @app.route("/post/<int:post_id>", methods=["GET"])
@@ -182,4 +210,41 @@ def post(post_id):
     post = Post.query.get_or_404(post_id)
     return render_template("post.html", title=post.title, post=post)
 
+from datetime import datetime
 
+@app.route("/post/<int:post_id>/update", methods=["GET", "POST"])
+@login_required # Only Logged-in user can update their own-post.
+def update_post(post_id):
+    post = Post.query.get_or_404(post_id)
+
+    if post.author != current_user:
+        abort(403)
+
+    # A Form to update things
+    form = PostForm()
+    if form.validate_on_submit():
+        post.title = form.title.data
+        post.content = form.content.data
+        # post.last_updated = datetime.utcnow
+        db.session.commit()
+        flash(f'Post Updated !', "success")
+        return redirect( url_for('post' , post_id=post.id) )
+    
+    elif request.method == 'GET':
+        form.title.data = post.title
+        form.content.data = post.content
+    return render_template("create_post.html", title='Update Post', legend= 'Update Post', form=form)
+
+
+@app.route("/post/<int:post_id>/delete", methods=["GET", "POST"])
+@login_required # Only Logged-in user can update their own-post.
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+
+    if post.author != current_user:
+        abort(403)
+
+    db.session.delete(post)
+    db.session.commit()
+    flash(f'Post Deleted !', "success")
+    return redirect(url_for('home'))

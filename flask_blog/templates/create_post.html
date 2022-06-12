@@ -4,7 +4,7 @@
     <form action="" method="POST">
         {{ form.hidden_tag() }}
         <fieldset class="form-group">
-            <legend class="border-bottom mb-4">Create a New Post</legend>
+            <legend class="border-bottom mb-4">{{ legend }}</legend>
             <div class="form-group">
                 <!-- 
                 if you are confused what this is doing, 
@@ -47,6 +47,9 @@
         <div class="form-group">
             {{ form.submit(class="btn btn-outline-info") }}
         </div>
+        <!-- Add div here that will show update_button
+        if the user is authenticated as well. Not. Key Backend Insight would be, anyone viewing this HTML 
+        knowing what address he could pass to log in. And using that as an exploit. -->
     </form>
 </div>
 {% endblock content %}

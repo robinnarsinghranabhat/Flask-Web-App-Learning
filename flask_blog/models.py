@@ -1,3 +1,4 @@
+from email.policy import default
 from flask_blog import db, login_manager
 from datetime import datetime
 from flask_login import UserMixin
@@ -29,6 +30,7 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True )
     title = db.Column(db.String(100), nullable=False )
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow )
+    last_updated = db.Column(db.DateTime, nullable=False, default=datetime.utcnow )
     content = db.Column( db.Text, nullable=False )
     ## For each Model, default name for table will be Lowercase Name of the class.
     ## That's why it's referencing table-name for User Class.

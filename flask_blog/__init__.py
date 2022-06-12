@@ -12,7 +12,17 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 
 ## for handling logins
+# SOMETHING INTERESTING IS HAPPENING HERE
+# inside LoginManager.init_app method, we are attaching login_manager object 
+# to our `app` object itself as : app.login_manager = self
+# This is interesting grounds through where I am walking.  
 login_manager = LoginManager(app)
+
+## MORE INTERESTING IS :
+# Since app.login_manager and login_manager are pointing to same address 
+# in Memory.
+# Changes to login_manager below, will reflect changes in 
+# app.login_manager as well.
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'info'
 
